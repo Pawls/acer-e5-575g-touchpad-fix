@@ -1,0 +1,5 @@
+*.dat
+*.aml
+*.dsl
+*.cpio
+__pycache__/

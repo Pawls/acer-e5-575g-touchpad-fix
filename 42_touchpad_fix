@@ -1,0 +1,15 @@
+#!/bin/sh
+# GRUB entry that boots the newest kernel with the patched DSDT. Installed by install.sh.
+set -e
+. "$pkgdatadir/grub-mkconfig_lib"
+
+boot_dir=$(make_system_path_relative_to_its_root /boot)
+
+echo "menuentry 'Linux (touchpad ACPI fix)' --class gnu-linux --class os {"
+echo "	insmod gzio"
+prepare_grub_to_access_device "${GRUB_DEVICE_BOOT}" | sed 's/^/\t/'
+cat <<ENTRY
+	linux ${boot_dir}/vmlinuz root=UUID=${GRUB_DEVICE_UUID} ro ${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}
+	initrd ${boot_dir}/acpi_override.cpio ${boot_dir}/initrd.img
+}
+ENTRY
