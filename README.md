@@ -79,7 +79,11 @@ a=$(grep ELAN0501 /proc/interrupts | awk '{print $2+$3+$4+$5}'); sleep 5
 b=$(grep ELAN0501 /proc/interrupts | awk '{print $2+$3+$4+$5}'); echo $(( (b - a) / 5 ))/s
 ```
 
-The cause is still open. The chipset GPIO controller is hidden from the OS (`INT344B` has ACPI status 0), and routing the pad whose interrupt select is 82 (community `0xAD`, pad 2) to the IO-APIC at runtime didn't change the rate.
+The cause is still open. What's been ruled out or learned so far:
+
+- The chipset GPIO controller is hidden from the OS (`INT344B` has ACPI status 0). Routing the pad whose interrupt select is 82 (community `0xAD`, pad 2) to the IO-APIC at runtime didn't change the rate.
+- Flipping the descriptor to `Level, ActiveHigh` stops the storm (0 interrupts/s) but the touchpad goes dead: IRQ 82 never fires for real touches.
+- In every boot where the touchpad isn't read constantly (stock `Edge`, or `ActiveHigh`), the kernel logs `irq 16: nobody cared` and `Disabling IRQ #16`. IRQ 16 is shared by `idma64.0`, `i2c_designware.0` (the touchpad's I2C bus) and `i801_smbus`. With `Level, ActiveLow` the constant reads keep the touchpad's buffer empty and IRQ 16 stays quiet. So the touchpad's real interrupt probably lands on IRQ 16, not 82. A DSDT fix can't simply point the touchpad at IRQ 16, because `i2c-hid` requests its IRQ without `IRQF_SHARED`.
 
 ## Caveats
 
