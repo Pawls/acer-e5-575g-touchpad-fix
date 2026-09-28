@@ -28,7 +28,7 @@ An I2C HID device holds its interrupt line low until the host reads its report, 
 
 `patch_dsdt.py` rewrites the touchpad's interrupt descriptors from `Edge` to `Level`. It leaves the polarity alone, bumps the table's OEM revision, and fixes the checksum. The kernel loads the patched table from an early initrd (this needs `CONFIG_ACPI_TABLE_UPGRADE=y`, which Ubuntu and Mint kernels have). A separate GRUB entry boots with it, and your existing entries are left unchanged.
 
-On the E5-575G the change is two bytes: one flag byte in each of the two touchpad device definitions (`TPD1` for the Synaptics variant, `TPDE` for ELAN), plus the revision number and checksum. After the fix, the interrupt shows as `82-fasteoi` and the touchpad works normally.
+On the E5-575G the change is two bytes: one flag byte in each of the two touchpad device definitions (`TPD1` for the Synaptics variant, `TPDE` for ELAN), plus the revision number and checksum. After the fix, the interrupt shows as `82-fasteoi` and the touchpad works, though not the way the Cause section suggests; see [Known issue: interrupt storm](#known-issue-interrupt-storm).
 
 The table is patched on your machine from your own firmware. No DSDT is distributed here.
 
@@ -61,6 +61,25 @@ sudo ./uninstall.sh
 ```
 
 This removes `/boot/acpi_override.cpio` and the GRUB entry. If the fix entry ever fails to boot, pick your normal entry from the GRUB menu.
+
+## Known issue: interrupt storm
+
+With the fix in place, the line stays asserted even when the touchpad has nothing to send. Measured on kernel 7.0.0-34, sitting idle:
+
+- IRQ 82 fires about 1,740 times a second, touched or not, and the `irq/82-ELAN0501` thread uses about 4% of one CPU thread.
+- An I2C trace over 2 seconds recorded 3,487 reads of the touchpad, and every one returned `ff ff ...`, the I2C HID "no data" reply. The kernel drops these silently (ELAN devices get `I2C_HID_QUIRK_BOGUS_IRQ`).
+- No input events arrive while idle.
+
+The touchpad works because the kernel reads it nonstop and picks up real reports along the way, not because the interrupt signals them. Now and then a read comes back garbled (`i2c_hid_get_input: incomplete report (14/60416)` in dmesg) and that report is lost, which may be why the cursor occasionally skips. The storm also keeps the CPU out of deep idle states, which costs battery.
+
+Check the rate on your machine (hands off the touchpad):
+
+```
+a=$(grep ELAN0501 /proc/interrupts | awk '{print $2+$3+$4+$5}'); sleep 5
+b=$(grep ELAN0501 /proc/interrupts | awk '{print $2+$3+$4+$5}'); echo $(( (b - a) / 5 ))/s
+```
+
+The cause is still open. The chipset GPIO controller is hidden from the OS (`INT344B` has ACPI status 0), and routing the pad whose interrupt select is 82 (community `0xAD`, pad 2) to the IO-APIC at runtime didn't change the rate.
 
 ## Caveats
 
