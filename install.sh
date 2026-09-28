@@ -25,10 +25,12 @@ cp dsdt.aml "$staging/kernel/firmware/acpi/dsdt.aml"
 [ -n "$SUDO_USER" ] && chown "$SUDO_USER": dsdt-original.dat dsdt.aml acpi_override.cpio
 
 install -m 644 acpi_override.cpio /boot/acpi_override.cpio
-install -m 755 42_touchpad_fix /etc/grub.d/42_touchpad_fix
-if [ "$1" != "--no-default" ]; then
-	mkdir -p /etc/default/grub.d
-	echo "GRUB_DEFAULT='Linux (touchpad ACPI fix)'" > /etc/default/grub.d/99_touchpad_fix.cfg
+# grub.d scripts run in filename order: 09_ puts the entry first (the default under
+# GRUB_DEFAULT=0), 42_ puts it after the distro's entries.
+if [ "$1" = "--no-default" ]; then
+	install -m 755 touchpad_fix.grub /etc/grub.d/42_touchpad_fix
+else
+	install -m 755 touchpad_fix.grub /etc/grub.d/09_touchpad_fix
 fi
 update-grub
 sed -n "/touchpad ACPI fix/,/^}/p" /boot/grub/grub.cfg

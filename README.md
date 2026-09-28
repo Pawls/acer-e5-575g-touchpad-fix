@@ -39,8 +39,8 @@ Boot in Advanced mode, without any DSDT override active, then run:
 ```
 git clone https://github.com/Pawls/acer-e5-575g-touchpad-fix.git
 cd acer-e5-575g-touchpad-fix
-sudo ./install.sh              # also makes the fix entry the GRUB default
-sudo ./install.sh --no-default # or: add the entry but keep your current default
+sudo ./install.sh              # puts the fix entry first in GRUB, so it boots by default
+sudo ./install.sh --no-default # or: add the entry at the end and keep your current default
 ```
 
 If the IRQ can't be detected automatically, find the touchpad's number in `/proc/interrupts` and pass it with `sudo IRQ=82 ./install.sh`.
@@ -60,7 +60,7 @@ The entry boots `/boot/vmlinuz` and `/boot/initrd.img`, which Debian, Ubuntu, an
 sudo ./uninstall.sh
 ```
 
-This removes `/boot/acpi_override.cpio`, the GRUB entry, and the default-entry setting. If the fix entry ever fails to boot, pick your normal entry from the GRUB menu.
+This removes `/boot/acpi_override.cpio` and the GRUB entry. If the fix entry ever fails to boot, pick your normal entry from the GRUB menu.
 
 ## Caveats
 
